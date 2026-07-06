@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ari Mix &amp; Match</title>
+<style>
+  /* ============================================================
+     RESET & BASE
+     ============================================================ */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0e0e10;
+    color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Mobile-first shell, capped at 500px so it also looks fine on desktop */
+  .app {
+    max-width: 500px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 96px; /* space for sticky footer */
+    background: linear-gradient(180deg, #16161a 0%, #0e0e10 40%);
+  }
+
+  header.top-bar {
+    padding: 18px 16px 8px;
+    text-align: center;
+  }
+  header.top-bar h1 {
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    margin: 0 0 2px;
+  }
+  header.top-bar p {
+    margin: 0;
+    font-size: 12px;
+    color: #9a9a9e;
+  }
+
+  /* ============================================================
+     ROW / SCROLL-SNAP CAROUSEL
+     ============================================================ */
+  .row-block { margin: 14px 0 18px; }
+
+  .row-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 8px;
+  }
+  .row-label h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #d8d8db;
+    margin: 0;
+  }
+  .row-label .price-tag {
+    font-size: 13px;
+    font-weight: 600;
+    color: #5be37d;
+  }
+
+  /* The scroll container. scroll-snap-type=x mandatory + generous
+     side padding (calc 50% - half card width) lets the FIRST and LAST
+     card also be centerable. */
+  .carousel {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 6px calc(50% - 65px);
+    scrollbar-width: none;             /* firefox */
+    -ms-overflow-style: none;
+  }
+  .carousel::-webkit-scrollbar { display: none; } /* chrome/safari */
+
+  .card {
+    flex: 0 0 130px;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    text-align: center;
+    opacity: 0.45;
+    transform: scale(0.82);
+    transition: transform 220ms ease, opacity 220ms ease;
+    cursor: pointer;
+  }
+  .card.active {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+
+  .card .thumb {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 14px;
+    background: #222;
+    border: 1px solid #2a2a2e;
+  }
+  .card.active .thumb {
+    border-color: #5be37d;
+    box-shadow: 0 0 0 2px rgba(91, 227, 125, 0.35);
+  }
+  .card .name {
+    font-size: 12px;
+    margin-top: 6px;
+    line-height: 1.25;
+    color: #e7e7ea;
+  }
+  .card .price {
+    font-size: 11px;
+    color: #9a9a9e;
+  }
+
+  /* Center guide line (purely visual, non-blocking) */
+  .center-guide {
+    position: relative;
+  }
+  .center-guide::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(255,255,255,0.06);
+    pointer-events: none;
+  }
+
+  /* Size dropdown beneath each row, reflects the active card */
+  .size-select-wrap {
+    padding: 10px 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .size-select-wrap label {
+    font-size: 12px;
+    color: #9a9a9e;
+    white-space: nowrap;
+  }
+  .size-select-wrap select {
+    flex: 1;
+    background: #1c1c20;
+    color: #f5f5f5;
+    border: 1px solid #333338;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    appearance: none;
+  }
+
+  /* ============================================================
+     STICKY FOOTER BUTTONS
+     ============================================================ */
+  .sticky-footer {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(14,14,16,0.92);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid #232327;
+    z-index: 50;
+  }
+  .btn {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 120ms ease, filter 120ms ease;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-tryon {
+    background: #1f7a3f;
+    color: #eafff0;
+  }
+  .btn-buy {
+    background: #f5f5f5;
+    color: #0e0e10;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Small toast for feedback (no blocking alert on success path) */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 92px;
+    transform: translateX(-50%) translateY(8px);
+    max-width: 440px;
+    width: calc(100% - 32px);
+    background: #232327;
+    color: #f5f5f5;
+    border: 1px solid #333338;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 60;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top-bar">
+    <h1>Ari Mix &amp; Match</h1>
+    <p>เลื่อนเลือกชุดที่ใช่ แล้วลองที่ร้านหรือช้อปออนไลน์ได้ทันที</p>
+  </header>
+
+  <!-- Rows are generated by JS from PRODUCTS below; container ids referenced there -->
+  <div id="rows-root"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="sticky-footer">
+  <button id="btnTryOn" class="btn btn-tryon">💚 ลองชุดนี้ที่ร้าน</button>
+  <button id="btnBuy" class="btn btn-buy">🛒 ซื้อออนไลน์เลย</button>
+</div>
+
+<script>
+/* =====================================================================
+   1. MOCK PRODUCT DATA
+   Mimics Shopify's product/variant structure. Each row (tops, pants,
+   socks, shoes) has 2-3 mock "Ari Brand" items. Each item carries a
+   base color + an array of variants (id + size) — same shape you'd get
+   back from Shopify's Storefront API / Cart Permalink needs.
+   ===================================================================== */
+const PRODUCTS = {
+  tops: [
+    {
+      id: 9001,
+      name: "Ari Grid Training Jersey",
+      price: 990,
+      color: "Black",
+      image: "https://placehold.co/260x320/111318/f5f5f5?text=Ari+Jersey",
+      variants: [
+        { id: "41234567890120", size: "S" },
+        { id: "41234567890121", size: "M" },
+        { id: "41234567890123", size: "L" }
+      ]
+    },
+    {
+      id: 9002,
+      name: "Ari Airflow Tee",
+      price: 690,
+      color: "White",
+      image: "https://placehold.co/260x320/1c1c20/f5f5f5?text=Ari+Tee",
+      variants: [
+        { id: "41234567890130", size: "M" },
+        { id: "41234567890131", size: "L" },
+        { id: "41234567890132", size: "XL" }
+      ]
+    },
+    {
+      id: 9003,
+      name: "Ari Half-Zip Track Top",
+      price: 1290,
+      color: "Navy",
+      image: "https://placehold.co/260x320/151a24/f5f5f5?text=Ari+Track+Top",
+      variants: [
+        { id: "41234567890140", size: "S" },
+        { id: "41234567890141", size: "M" }
+      ]
+    }
+  ],
+  pants: [
+    {
+      id: 9101,
+      name: "Ari Teamwear Shorts",
+      price: 590,
+      color: "Black",
+      image: "https://placehold.co/260x320/111318/f5f5f5?text=Ari+Shorts",
+      variants: [
+        { id: "41234567890124", size: "S" },
+        { id: "41234567890125", size: "M" },
+        { id: "41234567890126", size: "L" }
+      ]
+    },
+    {
+      id: 9102,
+      name: "Ari Tapered Track Pants",
+      price: 990,
+      color: "Grey",
+      image: "https://placehold.co/260x320/1c1c20/f5f5f5?text=Ari+Track+Pants",
+      variants: [
+        { id: "41234567890150", size: "M" },
+        { id: "41234567890151", size: "L" }
+      ]
+    },
+    {
+      id: 9103,
+      name: "Ari Compression Shorts",
+      price: 490,
+      color: "Red",
+      image: "https://placehold.co/260x320/240f10/f5f5f5?text=Ari+Compression",
+      variants: [
+        { id: "41234567890160", size: "S" },
+        { id: "41234567890161", size: "M" },
+        { id: "41234567890162", size: "L" }
+      ]
+    }
+  ],
+  socks: [
+    {
+      id: 9201,
+      name: "Ari Teamwear Socks",
+      price: 190,
+      color: "White",
+      image: "https://placehold.co/260x320/111318/f5f5f5?text=Ari+Socks",
+      variants: [
+        { id: "41234567890125", size: "F" }
+      ]
+    },
+    {
+      id: 9202,
+      name: "Ari Grip Ankle Socks",
+      price: 150,
+      color: "Black",
+      image: "https://placehold.co/260x320/1c1c20/f5f5f5?text=Ari+Ankle+Socks",
+      variants: [
+        { id: "41234567890170", size: "F" }
+      ]
+    },
+    {
+      id: 9203,
+      name: "Ari Cushion Crew Socks",
+      price: 210,
+      color: "Grey",
+      image: "https://placehold.co/260x320/16181c/f5f5f5?text=Ari+Crew+Socks",
+      variants: [
+        { id: "41234567890171", size: "F" }
+      ]
+    }
+  ],
+  shoes: [
+    {
+      id: 9301,
+      name: "Ari Football Boots",
+      price: 3200,
+      color: "Red",
+      image: "https://placehold.co/260x320/240f10/f5f5f5?text=Ari+Boots",
+      variants: [
+        { id: "41234567890126", size: "40" },
+        { id: "41234567890127", size: "41" },
+        { id: "41234567890128", size: "42" }
+      ]
+    },
+    {
+      id: 9302,
+      name: "Ari Street Runner",
+      price: 2490,
+      color: "White",
+      image: "https://placehold.co/260x320/111318/f5f5f5?text=Ari+Runner",
+      variants: [
+        { id: "41234567890180", size: "40" },
+        { id: "41234567890181", size: "42" },
+        { id: "41234567890182", size: "43" }
+      ]
+    },
+    {
+      id: 9303,
+      name: "Ari Turf Trainer",
+      price: 2790,
+      color: "Black",
+      image: "https://placehold.co/260x320/1c1c20/f5f5f5?text=Ari+Turf",
+      variants: [
+        { id: "41234567890190", size: "41" },
+        { id: "41234567890191", size: "42" }
+      ]
+    }
+  ]
+};
+
+// Row metadata: display label + emoji, in the fixed order the UI must show them
+const ROW_DEFS = [
+  { key: "tops",  label: "เสื้อ (Tops)"   },
+  { key: "pants", label: "กางเกง (Pants)" },
+  { key: "socks", label: "ถุงเท้า (Socks)" },
+  { key: "shoes", label: "รองเท้า (Shoes)" }
+];
+
+/* =====================================================================
+   2. CONFIG — swap this placeholder with a real Discord webhook URL.
+   ===================================================================== */
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL";
+
+// Shopify store domain used to build the Cart Permalink
+const SHOPIFY_STORE_DOMAIN = "https://www.arionline.com";
+
+/* =====================================================================
+   3. STATE
+   selection[rowKey] = { product, variant }  -> currently active product
+   for that row + the currently chosen size variant.
+   ===================================================================== */
+const selection = {};
+
+/* =====================================================================
+   4. RENDER ROWS
+   ===================================================================== */
+const rowsRoot = document.getElementById("rows-root");
+
+ROW_DEFS.forEach(({ key, label }) => {
+  const items = PRODUCTS[key];
+
+  const block = document.createElement("div");
+  block.className = "row-block";
+  block.innerHTML = `
+    <div class="row-label">
+      <h2>${label}</h2>
+      <span class="price-tag" id="price-${key}"></span>
+    </div>
+    <div class="carousel center-guide" id="carousel-${key}" data-row="${key}"></div>
+    <div class="size-select-wrap">
+      <label for="size-${key}">ไซส์</label>
+      <select id="size-${key}" data-row="${key}"></select>
+    </div>
+  `;
+  rowsRoot.appendChild(block);
+
+  const carousel = block.querySelector(`#carousel-${key}`);
+  items.forEach((product, idx) => {
+    const card = document.createElement("div");
+    card.className = "card" + (idx === 0 ? " active" : "");
+    card.dataset.row = key;
+    card.dataset.productId = product.id;
+    card.innerHTML = `
+      <img class="thumb" src="${product.image}" alt="${product.name}" loading="lazy">
+      <div class="name">${product.name}</div>
+      <div class="price">฿${product.price.toLocaleString()}</div>
+    `;
+    // Tapping a card scrolls it to center (snap handles the rest)
+    card.addEventListener("click", () => {
+      card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    });
+    carousel.appendChild(card);
+  });
+
+  // Seed initial selection with the first product/variant of each row
+  selection[key] = { product: items[0], variant: items[0].variants[0] };
+});
+
+/* =====================================================================
+   5. CENTER-DETECTION
+   For each carousel, use an IntersectionObserver whose root is the
+   scroll container itself and whose left/right rootMargin are both
+   -50%. That collapses the observed viewport into a 0-width vertical
+   line down the exact center — an item is "intersecting" only at the
+   instant it crosses that centerline, which is exactly the card
+   scroll-snap has settled on.
+   ===================================================================== */
+ROW_DEFS.forEach(({ key }) => {
+  const carousel = document.getElementById(`carousel-${key}`);
+  const cards = Array.from(carousel.querySelectorAll(".card"));
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveCard(key, entry.target, cards);
+        }
+      });
+    },
+    {
+      root: carousel,
+      rootMargin: "0px -50% 0px -50%",
+      threshold: 0
+    }
+  );
+
+  cards.forEach((card) => observer.observe(card));
+
+  // Initialize dropdown + price for the default-active (first) card
+  updateSizeDropdown(key, PRODUCTS[key][0]);
+  updatePriceTag(key, PRODUCTS[key][0]);
+});
+
+function setActiveCard(rowKey, activeCard, allCards) {
+  allCards.forEach((c) => c.classList.remove("active"));
+  activeCard.classList.add("active");
+
+  const productId = Number(activeCard.dataset.productId);
+  const product = PRODUCTS[rowKey].find((p) => p.id === productId);
+  if (!product) return;
+
+  selection[rowKey] = { product, variant: product.variants[0] };
+  updateSizeDropdown(rowKey, product);
+  updatePriceTag(rowKey, product);
+}
+
+function updatePriceTag(rowKey, product) {
+  const tag = document.getElementById(`price-${rowKey}`);
+  if (tag) tag.textContent = `฿${product.price.toLocaleString()}`;
+}
+
+/* =====================================================================
+   6. SIZE DROPDOWN — rebuilt whenever the active card in a row changes
+   ===================================================================== */
+function updateSizeDropdown(rowKey, product) {
+  const select = document.getElementById(`size-${rowKey}`);
+  select.innerHTML = "";
+  product.variants.forEach((variant) => {
+    const opt = document.createElement("option");
+    opt.value = variant.id;
+    opt.textContent = variant.size;
+    select.appendChild(opt);
+  });
+  select.value = product.variants[0].id;
+
+  select.onchange = () => {
+    const chosen = product.variants.find((v) => v.id === select.value);
+    if (chosen) selection[rowKey].variant = chosen;
+  };
+}
+
+/* =====================================================================
+   7. BUTTON A — "ลองชุดนี้ที่ร้าน"
+   Sends the current selection to Discord as a clean embed payload.
+   ===================================================================== */
+document.getElementById("btnTryOn").addEventListener("click", sendToDiscordBOH);
+
+async function sendToDiscordBOH() {
+  const outfit = buildOutfitSummary();
+
+  const payload = {
+    embeds: [
+      {
+        title: "🔔 มีออเดอร์ลองชุดใหม่จากหน้าร้านครับ!",
+        color: 3066993, // Discord green
+        fields: [
+          { name: "👕 เสื้อ",     value: formatField(outfit.tops),  inline: false },
+          { name: "🩳 กางเกง",   value: formatField(outfit.pants), inline: false },
+          { name: "🧦 ถุงเท้า",  value: formatField(outfit.socks), inline: false },
+          { name: "👟 รองเท้า",  value: formatField(outfit.shoes), inline: false }
+        ],
+        timestamp: new Date().toISOString()
+      }
+    ]
+  };
+
+  const btn = document.getElementById("btnTryOn");
+  btn.disabled = true;
+
+  try {
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    showToast("ส่งข้อมูลให้พนักงานหลังร้านเรียบร้อยแล้วค่ะ กรุณารอสักครู่นะคะ!");
+  } catch (err) {
+    showToast("ส่งข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    console.error("Discord webhook error:", err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function formatField(item) {
+  return `${item.name}\nไซส์: ${item.size} | สี: ${item.color}`;
+}
+
+/* =====================================================================
+   8. BUTTON B — "ซื้อออนไลน์เลย"
+   Builds a Shopify Cart Permalink from the 4 selected variant ids and
+   opens it in a new tab.
+   ===================================================================== */
+document.getElementById("btnBuy").addEventListener("click", redirectToAriCart);
+
+function redirectToAriCart() {
+  const outfit = buildOutfitSummary();
+
+  const topId   = outfit.tops.variantId;
+  const pantsId = outfit.pants.variantId;
+  const socksId = outfit.socks.variantId;
+  const shoesId = outfit.shoes.variantId;
+
+  const shopifyPermalink =
+    `${SHOPIFY_STORE_DOMAIN}/cart/${topId}:1,${pantsId}:1,${socksId}:1,${shoesId}:1`;
+
+  window.open(shopifyPermalink, "_blank");
+}
+
+/* =====================================================================
+   9. HELPERS
+   ===================================================================== */
+function buildOutfitSummary() {
+  const rowToKey = { tops: "tops", pants: "pants", socks: "socks", shoes: "shoes" };
+  const outfit = {};
+  Object.keys(rowToKey).forEach((rowKey) => {
+    const { product, variant } = selection[rowKey];
+    outfit[rowKey] = {
+      name: product.name,
+      color: product.color,
+      size: variant.size,
+      variantId: variant.id,
+      price: product.price
+    };
+  });
+  return outfit;
+}
+
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 3200);
+}
+</script>
+</body>
+</html>
